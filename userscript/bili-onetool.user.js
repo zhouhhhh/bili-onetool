@@ -319,14 +319,20 @@
   }
 
   function normalizeVideoInfo(data) {
+    const bvid = data.bvid || getBvIdFromUrl();
+
     return {
       title: data.title || document.title,
-      bvid: data.bvid || getBvIdFromUrl(),
-      pageUrl: window.location.href,
+      bvid,
+      pageUrl: getCleanVideoUrl(bvid),
       coverUrl: data.pic || '',
       upName: data.owner && data.owner.name ? data.owner.name : '',
       cid: data.cid ? String(data.cid) : '',
     };
+  }
+
+  function getCleanVideoUrl(bvId) {
+    return bvId ? `https://www.bilibili.com/video/${bvId}` : '';
   }
 
   function renderVideoInfo(panel, videoInfo) {
