@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bili OneTool
 // @namespace    https://github.com/bili-onetool
-// @version      0.1.2
+// @version      0.1.3
 // @description  在哔哩哔哩视频页注入轻量工具面板，整理当前视频公开信息。
 // @author       zhouhhhh
 // @match        https://www.bilibili.com/video/*
@@ -24,9 +24,11 @@
   const BUTTON_ID = `${APP_ID}-button`;
   const PANEL_ID = `${APP_ID}-panel`;
   const API_VIEW_URL = 'https://api.bilibili.com/x/web-interface/view';
+  const STATUS_AUTO_CLEAR_DELAY = 3000;
 
   // 先缓存最近一次读取结果，后续下载封面和复制 Markdown 会复用它。
   let currentVideoInfo = null;
+  let statusClearTimer = null;
 
   function init() {
     if (!isVideoPage()) {
@@ -308,7 +310,7 @@
       }
 
       GM_setClipboard(formatMarkdown(currentVideoInfo), 'text');
-      renderPanelStatus(panel, '已复制 Markdown 到剪贴板');
+      renderPanelStatus(panel, '已复制 Markdown 到剪贴板', false, true);
     } catch (error) {
       console.warn(`[${APP_NAME}] failed to copy markdown`, error);
       renderPanelStatus(panel, error.message || '复制 Markdown 失败', true);
@@ -411,14 +413,31 @@
     content.innerHTML = `<p class="${className}">${escapeHtml(message)}</p>`;
   }
 
-  function renderPanelStatus(panel, message, isError = false) {
+  function renderPanelStatus(panel, message, isError = false, autoClear = false) {
     const status = panel.querySelector(`.${APP_ID}-status`);
     if (!status) {
       return;
     }
 
+    clearStatusTimer();
+
     status.className = isError ? `${APP_ID}-status ${APP_ID}-error` : `${APP_ID}-status`;
     status.textContent = message;
+
+    if (message && autoClear) {
+      statusClearTimer = window.setTimeout(() => {
+        renderPanelStatus(panel, '');
+      }, STATUS_AUTO_CLEAR_DELAY);
+    }
+  }
+
+  function clearStatusTimer() {
+    if (!statusClearTimer) {
+      return;
+    }
+
+    window.clearTimeout(statusClearTimer);
+    statusClearTimer = null;
   }
 
   function formatMarkdown(videoInfo) {
