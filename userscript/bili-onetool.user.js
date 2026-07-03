@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bili OneTool
 // @namespace    https://github.com/bili-onetool
-// @version      0.1.3
+// @version      0.1.4
 // @description  在哔哩哔哩视频页注入轻量工具面板，整理当前视频公开信息。
 // @author       zhouhhhh
 // @match        https://www.bilibili.com/video/*
@@ -13,12 +13,14 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @connect      api.bilibili.com
+// @connect      *.hdslb.com
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
   'use strict';
 
+  // 基础标识和 DOM id 都集中定义，避免后面拼字符串时写散。
   const APP_ID = 'bili-onetool';
   const APP_NAME = 'Bili OneTool';
   const BUTTON_ID = `${APP_ID}-button`;
@@ -30,6 +32,7 @@
   let currentVideoInfo = null;
   let statusClearTimer = null;
 
+  // 脚本入口：确认当前是 B 站视频页后，再注入样式和浮动按钮。
   function init() {
     if (!isVideoPage()) {
       return;
@@ -48,6 +51,7 @@
     return /^\/video\/BV[a-zA-Z0-9]+/.test(window.location.pathname);
   }
 
+  // 把工具按钮、面板、封面预览、按钮组等样式动态插入到当前页面。
   function injectStyle() {
     if (document.getElementById(`${APP_ID}-style`)) {
       return;
@@ -161,12 +165,13 @@
 
       #${PANEL_ID} .${APP_ID}-actions {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         margin-top: 12px;
       }
 
       #${PANEL_ID} .${APP_ID}-actions button {
-        flex: 1;
+        flex: 1 1 calc(50% - 8px);
         padding: 7px 8px;
         border: 1px solid #e3e5e7;
         border-radius: 6px;
@@ -206,6 +211,7 @@
     document.head.appendChild(style);
   }
 
+  // 创建右侧浮动入口按钮；点击后由 togglePanel 控制面板开关。
   function injectFloatingButton() {
     if (document.getElementById(BUTTON_ID)) {
       return;
@@ -220,6 +226,7 @@
     document.body.appendChild(button);
   }
 
+  // 面板每次打开时都刷新一次信息，适配 B 站站内切换视频但页面不完全刷新的情况。
   function togglePanel() {
     const panel = getOrCreatePanel();
     panel.hidden = !panel.hidden;
@@ -230,6 +237,7 @@
     }
   }
 
+  // 懒创建面板：第一次点击按钮时创建，之后复用同一个 DOM。
   function getOrCreatePanel() {
     const existingPanel = document.getElementById(PANEL_ID);
     if (existingPanel) {
@@ -250,6 +258,7 @@
       <p class="${APP_ID}-status" aria-live="polite"></p>
       <div class="${APP_ID}-actions">
         <button type="button" data-action="refresh">刷新信息</button>
+        <button type="button" data-action="download-cover">下载封面</button>
         <button type="button" data-action="copy-markdown">复制 Markdown</button>
       </div>
     `;
@@ -260,6 +269,7 @@
     return panel;
   }
 
+  // 面板内所有按钮都通过 data-action 分发，新增按钮时只需要加一个 action 分支。
   function handlePanelClick(event) {
     const action = event.target.dataset.action;
 
@@ -273,11 +283,17 @@
       return;
     }
 
+    if (action === 'download-cover') {
+      downloadCover();
+      return;
+    }
+
     if (action === 'copy-markdown') {
       copyMarkdown();
     }
   }
 
+  // 读取当前视频信息，并把结果缓存到 currentVideoInfo，供复制和下载复用。
   async function refreshVideoInfo() {
     const panel = getOrCreatePanel();
     currentVideoInfo = null;
@@ -296,6 +312,7 @@
     }
   }
 
+  // 复制 Markdown：没有缓存时先刷新，再把视频信息格式化后写入剪贴板。
   async function copyMarkdown() {
     const panel = getOrCreatePanel();
 
@@ -317,6 +334,34 @@
     }
   }
 
+  // 下载封面：没有缓存时先刷新，再用 GM_download 保存封面文件。
+  async function downloadCover() {
+    const panel = getOrCreatePanel();
+
+    try {
+      if (!currentVideoInfo) {
+        renderPanelStatus(panel, '还没有视频信息，正在先刷新...');
+        await refreshVideoInfo();
+      }
+
+      if (!currentVideoInfo) {
+        throw new Error('没有可下载的封面信息');
+      }
+
+      if (!currentVideoInfo.coverUrl) {
+        throw new Error('未获取到封面 URL');
+      }
+
+      renderPanelStatus(panel, '正在下载封面...');
+      await downloadFile(currentVideoInfo.coverUrl, getCoverFileName(currentVideoInfo));
+      renderPanelStatus(panel, '封面下载已开始', false, true);
+    } catch (error) {
+      console.warn(`[${APP_NAME}] failed to download cover`, error);
+      renderPanelStatus(panel, error.message || '下载封面失败', true);
+    }
+  }
+
+  // 从当前地址中提取 BV 号，例如 /video/BV1xxx -> BV1xxx。
   function getBvIdFromUrl(url = window.location.href) {
     const { pathname } = new URL(url);
     const match = pathname.match(/\/video\/(BV[a-zA-Z0-9]+)/);
@@ -324,6 +369,7 @@
     return match ? match[1] : '';
   }
 
+  // 调用 B 站公开 view 接口获取标题、封面、UP 主、CID 等基础信息。
   function fetchVideoInfo(bvId) {
     if (!bvId) {
       return Promise.reject(new Error('未在当前页面 URL 中找到 BV 号'));
@@ -361,6 +407,7 @@
     });
   }
 
+  // 把接口返回的大对象整理成面板真正需要的小对象。
   function normalizeVideoInfo(data) {
     const bvid = data.bvid || getBvIdFromUrl();
 
@@ -368,16 +415,35 @@
       title: data.title || document.title,
       bvid,
       pageUrl: getCleanVideoUrl(bvid),
-      coverUrl: data.pic || '',
+      coverUrl: normalizeResourceUrl(data.pic),
       upName: data.owner && data.owner.name ? data.owner.name : '',
       cid: data.cid ? String(data.cid) : '',
     };
   }
 
+  // 生成不带 spm_id_from、vd_source 等个人追踪参数的干净视频链接。
   function getCleanVideoUrl(bvId) {
     return bvId ? `https://www.bilibili.com/video/${bvId}` : '';
   }
 
+  // B 站资源可能返回 // 或 http:// 开头，这里统一成可安全展示和下载的 https://。
+  function normalizeResourceUrl(url) {
+    if (!url) {
+      return '';
+    }
+
+    if (url.startsWith('//')) {
+      return `https:${url}`;
+    }
+
+    if (url.startsWith('http://')) {
+      return url.replace(/^http:\/\//, 'https://');
+    }
+
+    return url;
+  }
+
+  // 把当前视频信息渲染成封面预览和字段列表。
   function renderVideoInfo(panel, videoInfo) {
     const content = panel.querySelector(`.${APP_ID}-content`);
     const coverHtml = videoInfo.coverUrl
@@ -397,6 +463,7 @@
     `;
   }
 
+  // 渲染单个字段；所有值都先转义，避免外部文本直接进入 HTML。
   function renderInfoItem(label, value) {
     return `
       <div>
@@ -406,6 +473,7 @@
     `;
   }
 
+  // 面板主内容区的提示，例如“正在读取”或“读取失败”。
   function renderPanelMessage(panel, message, isError = false) {
     const content = panel.querySelector(`.${APP_ID}-content`);
     const className = isError ? `${APP_ID}-message ${APP_ID}-error` : `${APP_ID}-message`;
@@ -413,6 +481,7 @@
     content.innerHTML = `<p class="${className}">${escapeHtml(message)}</p>`;
   }
 
+  // 面板底部状态区的提示；autoClear 为 true 时会在几秒后自动清空。
   function renderPanelStatus(panel, message, isError = false, autoClear = false) {
     const status = panel.querySelector(`.${APP_ID}-status`);
     if (!status) {
@@ -431,6 +500,7 @@
     }
   }
 
+  // 清理上一次自动隐藏状态的定时器，避免旧定时器清掉新提示。
   function clearStatusTimer() {
     if (!statusClearTimer) {
       return;
@@ -440,6 +510,7 @@
     statusClearTimer = null;
   }
 
+  // 生成复制到剪贴板的 Markdown 文本。
   function formatMarkdown(videoInfo) {
     return `# ${formatMarkdownValue(videoInfo.title)}
 
@@ -452,8 +523,60 @@ CID：${formatMarkdownValue(videoInfo.cid)}
 ## 备注`;
   }
 
+  // Markdown 里缺失的字段统一显示为“未获取到”。
   function formatMarkdownValue(value) {
     return value ? String(value) : '未获取到';
+  }
+
+  // 对 GM_download 做一层 Promise 包装，方便 downloadCover 使用 await。
+  function downloadFile(url, fileName) {
+    return new Promise((resolve, reject) => {
+      GM_download({
+        url,
+        name: fileName,
+        saveAs: false,
+        onload() {
+          resolve();
+        },
+        onerror() {
+          reject(new Error('下载封面失败'));
+        },
+        ontimeout() {
+          reject(new Error('下载封面超时'));
+        },
+      });
+    });
+  }
+
+  // 封面文件名使用“标题-BV号.扩展名”，其中标题和 BV 号都会先做文件名清理。
+  function getCoverFileName(videoInfo) {
+    const title = sanitizeFileName(videoInfo.title || 'bili-cover');
+    const bvid = sanitizeFileName(videoInfo.bvid || 'unknown');
+    const extension = getFileExtensionFromUrl(videoInfo.coverUrl) || 'jpg';
+
+    return `${title}-${bvid}.${extension}`;
+  }
+
+  // 去掉系统文件名不允许的字符，并限制长度，避免下载保存失败。
+  function sanitizeFileName(fileName) {
+    return String(fileName)
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/[\u0000-\u001f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 80) || 'bili-cover';
+  }
+
+  // 从封面 URL 中猜测扩展名；猜不到时上层会回退到 jpg。
+  function getFileExtensionFromUrl(url) {
+    try {
+      const { pathname } = new URL(url);
+      const match = pathname.match(/\.([a-z0-9]+)(?:@.*)?$/i);
+
+      return match ? match[1].toLowerCase() : '';
+    } catch (error) {
+      return '';
+    }
   }
 
   function escapeHtml(value) {
