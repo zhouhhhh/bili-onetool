@@ -87,6 +87,7 @@
         right: 24px;
         z-index: 999999;
         width: 280px;
+        max-height: calc(100vh - 232px);
         padding: 14px;
         border: 1px solid #e3e5e7;
         border-radius: 8px;
@@ -95,6 +96,7 @@
         box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
         font-size: 14px;
         line-height: 1.5;
+        overflow: hidden;
       }
 
       #${PANEL_ID}[hidden] {
@@ -153,6 +155,37 @@
         gap: 2px;
       }
 
+      #${PANEL_ID} .${APP_ID}-info-item dd {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      #${PANEL_ID} .${APP_ID}-info-value {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      #${PANEL_ID} .${APP_ID}-copy-row-button {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid #e3e5e7;
+        border-radius: 4px;
+        color: #61666d;
+        background: #fff;
+        font-size: 12px;
+        line-height: 22px;
+        cursor: pointer;
+      }
+
+      #${PANEL_ID} .${APP_ID}-copy-row-button:hover {
+        color: #00aeec;
+        border-color: #00aeec;
+      }
+
       #${PANEL_ID} .${APP_ID}-info-list dt {
         color: #9499a0;
         font-size: 12px;
@@ -165,18 +198,20 @@
 
       #${PANEL_ID} .${APP_ID}-actions {
         display: flex;
-        flex-wrap: wrap;
         gap: 8px;
-        margin-top: 12px;
+        margin-bottom: 10px;
       }
 
       #${PANEL_ID} .${APP_ID}-actions button {
-        flex: 1 1 calc(50% - 8px);
-        padding: 7px 8px;
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 7px 6px;
         border: 1px solid #e3e5e7;
         border-radius: 6px;
         color: #18191c;
         background: #fff;
+        font-size: 12px;
+        white-space: nowrap;
         cursor: pointer;
       }
 
@@ -191,11 +226,34 @@
         background: #f6f7f8;
       }
 
+      #${PANEL_ID} .${APP_ID}-content {
+        max-height: calc(100vh - 360px);
+        overflow: auto;
+      }
+
       #${PANEL_ID} .${APP_ID}-status {
-        min-height: 18px;
-        margin-top: 10px;
-        color: #61666d;
+        position: fixed;
+        top: 116px;
+        right: 24px;
+        z-index: 1000000;
+        width: 280px;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #e3e5e7;
+        border-radius: 8px;
+        color: #18191c;
+        background: #fff;
         font-size: 12px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-8px);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+      }
+
+      #${PANEL_ID} .${APP_ID}-status:not(:empty) {
+        opacity: 1;
+        transform: translateY(0);
       }
 
       #${PANEL_ID} .${APP_ID}-error {
@@ -204,7 +262,8 @@
       }
 
       #${PANEL_ID} .${APP_ID}-status.${APP_ID}-error {
-        background: transparent;
+        border-color: #ffd0d7;
+        background: #fff2f3;
       }
     `;
 
@@ -252,15 +311,15 @@
         <h2>Bili OneTool</h2>
         <button class="${APP_ID}-icon-button" type="button" data-action="close" title="关闭面板">×</button>
       </div>
+      <div class="${APP_ID}-actions">
+        <button type="button" data-action="refresh">刷新信息</button>
+        <button type="button" data-action="download-cover">下载封面</button>
+        <button type="button" data-action="copy-markdown">复制MD</button>
+      </div>
       <div class="${APP_ID}-content">
         <p class="${APP_ID}-message">脚本已加载。点击刷新后读取当前视频信息。</p>
       </div>
       <p class="${APP_ID}-status" aria-live="polite"></p>
-      <div class="${APP_ID}-actions">
-        <button type="button" data-action="refresh">刷新信息</button>
-        <button type="button" data-action="download-cover">下载封面</button>
-        <button type="button" data-action="copy-markdown">复制 Markdown</button>
-      </div>
     `;
     // 面板按钮统一用 data-action 分发，后续新增按钮时不用重复绑定事件。
     panel.addEventListener('click', handlePanelClick);
@@ -290,6 +349,11 @@
 
     if (action === 'copy-markdown') {
       copyMarkdown();
+      return;
+    }
+
+    if (action === 'copy-info-row') {
+      copyInfoRow(event.target);
     }
   }
 
@@ -361,6 +425,15 @@
     }
   }
 
+  // 复制单行字段的值，例如 BV 号这一行只复制“BVxxxx”。
+  function copyInfoRow(button) {
+    const panel = getOrCreatePanel();
+    const { label, value } = button.dataset;
+
+    GM_setClipboard(`${value}`, 'text');
+    renderPanelStatus(panel, `已复制${label}`, false, true);
+  }
+  
   // 从当前地址中提取 BV 号，例如 /video/BV1xxx -> BV1xxx。
   function getBvIdFromUrl(url = window.location.href) {
     const { pathname } = new URL(url);
@@ -465,10 +538,22 @@
 
   // 渲染单个字段；所有值都先转义，避免外部文本直接进入 HTML。
   function renderInfoItem(label, value) {
+    const displayValue = value || '未获取到';
+
     return `
-      <div>
+      <div class="${APP_ID}-info-item">
         <dt>${escapeHtml(label)}</dt>
-        <dd>${escapeHtml(value || '未获取到')}</dd>
+        <dd>
+          <span class="${APP_ID}-info-value">${escapeHtml(displayValue)}</span>
+          <button
+            class="${APP_ID}-copy-row-button"
+            type="button"
+            data-action="copy-info-row"
+            data-label="${escapeHtml(label)}"
+            data-value="${escapeHtml(displayValue)}"
+            title="复制${escapeHtml(label)}"
+          >⧉</button>
+        </dd>
       </div>
     `;
   }
@@ -481,8 +566,8 @@
     content.innerHTML = `<p class="${className}">${escapeHtml(message)}</p>`;
   }
 
-  // 面板底部状态区的提示；autoClear 为 true 时会在几秒后自动清空。
-  function renderPanelStatus(panel, message, isError = false, autoClear = false) {
+  // 浮层状态提示；默认 3 秒后自动清空，避免提示藏在面板底部或长期常驻。
+  function renderPanelStatus(panel, message, isError = false, autoClear = true) {
     const status = panel.querySelector(`.${APP_ID}-status`);
     if (!status) {
       return;
