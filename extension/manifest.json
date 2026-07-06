@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Bili OneTool",
+  "version": "0.2.0",
+  "description": "在哔哩哔哩视频页注入轻量工具面板，整理当前视频公开信息。",
+  "permissions": [
+    "clipboardWrite",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://api.bilibili.com/*",
+    "https://*.hdslb.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.bilibili.com/video/*",
+        "https://bilibili.com/video/*"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "js": [
+        "src/shared/video-info.js",
+        "src/shared/markdown.js",
+        "src/content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

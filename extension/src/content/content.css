@@ -1,0 +1,214 @@
+#bili-onetool-button,
+#bili-onetool-panel,
+#bili-onetool-panel * {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#bili-onetool-button {
+  position: fixed;
+  top: 160px;
+  right: 24px;
+  z-index: 999999;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #00aeec;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+#bili-onetool-button:hover {
+  background: #0098d4;
+}
+
+#bili-onetool-panel {
+  position: fixed;
+  top: 208px;
+  right: 24px;
+  z-index: 999999;
+  width: 280px;
+  max-height: calc(100vh - 232px);
+  padding: 14px;
+  border: 1px solid #e3e5e7;
+  border-radius: 8px;
+  color: #18191c;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+#bili-onetool-panel[hidden] {
+  display: none;
+}
+
+#bili-onetool-panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#bili-onetool-panel p {
+  margin: 0;
+}
+
+#bili-onetool-panel .bili-onetool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+#bili-onetool-panel .bili-onetool-icon-button {
+  border: 0;
+  color: #9499a0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#bili-onetool-panel .bili-onetool-icon-button:hover {
+  color: #18191c;
+}
+
+#bili-onetool-panel .bili-onetool-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#bili-onetool-panel .bili-onetool-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 6px;
+  border: 1px solid #e3e5e7;
+  border-radius: 6px;
+  color: #18191c;
+  background: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#bili-onetool-panel .bili-onetool-actions button:hover {
+  color: #00aeec;
+  border-color: #00aeec;
+}
+
+#bili-onetool-panel .bili-onetool-content {
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+}
+
+#bili-onetool-panel .bili-onetool-cover {
+  width: 100%;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #f1f2f3;
+}
+
+#bili-onetool-panel .bili-onetool-cover img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+#bili-onetool-panel .bili-onetool-info-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+#bili-onetool-panel .bili-onetool-info-item {
+  display: grid;
+  gap: 2px;
+}
+
+#bili-onetool-panel .bili-onetool-info-list dt {
+  color: #9499a0;
+  font-size: 12px;
+}
+
+#bili-onetool-panel .bili-onetool-info-list dd {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+#bili-onetool-panel .bili-onetool-info-value {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#bili-onetool-panel .bili-onetool-copy-row-button {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #e3e5e7;
+  border-radius: 4px;
+  color: #61666d;
+  background: #fff;
+  font-size: 12px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+#bili-onetool-panel .bili-onetool-copy-row-button:hover {
+  color: #00aeec;
+  border-color: #00aeec;
+}
+
+#bili-onetool-panel .bili-onetool-message {
+  padding: 10px;
+  border-radius: 6px;
+  color: #61666d;
+  background: #f6f7f8;
+}
+
+#bili-onetool-panel .bili-onetool-message.bili-onetool-error {
+  color: #d03050;
+  background: #fff2f3;
+}
+
+#bili-onetool-panel .bili-onetool-status {
+  position: fixed;
+  top: 116px;
+  right: 24px;
+  z-index: 1000000;
+  width: 280px;
+  padding: 10px 12px;
+  border: 1px solid #e3e5e7;
+  border-radius: 8px;
+  color: #18191c;
+  background: #fff;
+  font-size: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+#bili-onetool-panel .bili-onetool-status:not(:empty) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#bili-onetool-panel .bili-onetool-status.bili-onetool-error {
+  border-color: #ffd0d7;
+  color: #d03050;
+  background: #fff2f3;
+}
